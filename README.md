@@ -1,7 +1,11 @@
 <img src="http://www.jpeek.org/logo.svg" height="92px"/>
 
-[![Managed by Zerocracy](http://www.0crat.com/badge/C7JGJ00DP.svg)](http://www.0crat.com/p/C7JGJ00DP)
+[![Donate via Zerocracy](https://www.0crat.com/contrib-badge/C7JGJ00DP.svg)](https://www.0crat.com/contrib/C7JGJ00DP)
+
+[![EO principles respected here](http://www.elegantobjects.org/badge.svg)](http://www.elegantobjects.org)
+[![Managed by Zerocracy](https://www.0crat.com/badge/C7JGJ00DP.svg)](https://www.0crat.com/p/C7JGJ00DP)
 [![DevOps By Rultor.com](http://www.rultor.com/b/yegor256/jpeek)](http://www.rultor.com/p/yegor256/jpeek)
+[![We recommend IntelliJ IDEA](http://www.elegantobjects.org/intellij-idea.svg)](https://www.jetbrains.com/idea/)
 
 [![Build Status](https://travis-ci.org/yegor256/jpeek.svg?branch=master)](https://travis-ci.org/yegor256/jpeek)
 [![Javadoc](http://www.javadoc.io/badge/org.jpeek/jpeek.svg)](http://www.javadoc.io/doc/org.jpeek/jpeek)
@@ -30,14 +34,62 @@ book series make sense.
 
 ## How to use?
 
-Load [this JAR file](http://repo1.maven.org/maven2/org/jpeek/jpeek/0.5/jpeek-0.5-jar-with-dependencies.jar) and then:
+Load the latest `jar-with-dependencies.jar` file from
+[here](http://repo1.maven.org/maven2/org/jpeek/jpeek/)
+and then:
 
 ```bash
-$ java -jar jpeek-0.5-jar-with-dependencies.jar --sources . --target ./jpeek
+$ java -jar jpeek-jar-with-dependencies.jar --sources . --target ./jpeek
 ```
 
 jPeek will analyze Java files in the current directory.
 XML reports will be generated in the `./jpeek` directory. Enjoy.
+
+You can also deploy it as a web service to your own platform. Just compile it
+with `mvn clean package --settings settings.xml` and then run, as `Procfile` suggests.
+You will need to have `settings.xml` with the following data:
+
+```xml
+<settings>
+  <profiles>
+    <profile>
+      <id>jpeek-heroku</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <sentry.dsn>https://...</sentry.dsn>
+        <dynamo.key>AKIAI..........LNN6A</dynamo.key>
+        <dynamo.secret>6560KMv5+8Ti....................Qdwob63Z</dynamo.secret>
+      </properties>
+    </profile>
+  </profiles>
+</settings>
+```
+
+You will also need these tables in DynamoDB (all indexes must deliver `ALL` attributes):
+
+```
+jpeek-mistakes:
+  metric (HASH/String)
+  version (RANGE/String)
+  indexes:
+    mistakes (GSI):
+      version (HASH/String),
+      avg (RANGE/Number)
+jpeek-results:
+  artifact (HASH/String)
+  indexes:
+    ranks (GSI):
+      version (HASH/String)
+      rank (RANGE/Number)
+    scores (GSI):
+      version (HASH/String)
+      score (RANGE/Number)
+    recent (GSI):
+      good (HASH/String)
+      added (RANGE/Number)
+```
 
 ## Cohesion Metrics
 
@@ -72,7 +124,7 @@ IEEE Transactions on Software Engineering, vol.20, no.6, 1994,
 [PDF](http://www.pitt.edu/~ckemerer/CK%20research%20papers/MetricForOOD_ChidamberKemerer94.pdf).
 
 [`aman04`]
-Optimistic Class Cohesion (**OCC**).<br/>
+Optimistic Class Cohesion (**OCC**) and Pessimistic Class Cohesion (**PCC**).<br/>
 Hirohisa Aman et al.,<br/>
 _A proposal of class cohesion metrics using sizes of cohesive parts_,<br/>
 Proc. of Fifth Joint Conference on Knowledge-based Software Engineering, 2002,
@@ -112,6 +164,27 @@ Luis Fernández et al.,<br/>
 _[A] new metric [...] yielding meaningful values [...] more sensitive than those previously reported_,<br/>
 International Journal "Information Theories & Applications", Volume 13, 2006,
 [PDF](http://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=55D08270F99333F15E0937AF137F4468?doi=10.1.1.84.1506&rep=rep1&type=pdf).
+
+[`bieman95`]
+Tight Class Cohesion (**TCC**).<br/>
+James M. Bieman et al.,<br/>
+Cohesion and Reuse in an Object-Oriented System,<br/>
+Department of Computer Science, Colorado State University, 1995,
+[PDF](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.53.2683).
+
+[`dallal11.pdf`]
+Transitive Lack of Cohesion in Methods (**TLCOM**).<br/>
+Jehad Al Dallal,<br/>
+Transitive-based object-oriented lack-of-cohesion metric,<br/>
+Department of Information Science, Kuwait University, 2011,
+[PDF](https://www.researchgate.net/publication/220307725_Transitive-based_object-oriented_lack-of-cohesion_metric).
+
+[`hitz95`]
+Lack of Cohesion in Methods 4 (**LCOM4**).<br/>
+Martin Hitz et al.,<br/>
+Measuring Coupling and Cohesion In Object-Oriented Systems,<br/>
+Institute of Applied Computer Science and Systems Analysis, University of Vienna, 1995,
+[PDF](http://www.isys.uni-klu.ac.at/PDF/1995-0043-MHBM.pdf).
 
 ## How it works?
 
@@ -164,6 +237,10 @@ Then, we have a collection of XSL stylesheets, one per each metric. For example,
 Thus, all calculations happen inside the XSLT files. We decided to implement
 it this way after a less successful attempt to do it all in Java. It seems
 that XSL is much more suitable for manipulations with data than Java.
+
+## Known Limitations
+
+* The java compiler is known to inline constant variables as per [JLS 13.1](https://docs.oracle.com/javase/specs/jls/se8/html/jls-13.html#jls-13.1). This affects the results calculated by metrics that take into account access to class attributes if these are `final` constants. For instance, all LCOM* and *COM metrics are affected.
 
 ## How to contribute?
 

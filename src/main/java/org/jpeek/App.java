@@ -23,6 +23,7 @@
  */
 package org.jpeek;
 
+import com.jcabi.log.Logger;
 import com.jcabi.xml.ClasspathSources;
 import com.jcabi.xml.StrictXML;
 import com.jcabi.xml.XML;
@@ -34,7 +35,6 @@ import com.jcabi.xml.XSLDocument;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import org.cactoos.collection.CollectionOf;
@@ -42,9 +42,12 @@ import org.cactoos.io.LengthOf;
 import org.cactoos.io.ResourceOf;
 import org.cactoos.io.TeeInput;
 import org.cactoos.list.ListOf;
+import org.cactoos.map.MapEntry;
+import org.cactoos.map.MapOf;
 import org.cactoos.scalar.And;
 import org.cactoos.scalar.AndInThreads;
 import org.cactoos.scalar.IoCheckedScalar;
+import org.jpeek.skeleton.Skeleton;
 import org.xembly.Directives;
 import org.xembly.Xembler;
 
@@ -59,11 +62,11 @@ import org.xembly.Xembler;
  * @checkstyle ClassDataAbstractionCouplingCheck (500 lines)
  * @checkstyle ClassFanOutComplexityCheck (500 lines)
  * @checkstyle ExecutableStatementCountCheck (500 lines)
- *
- * @todo #9:30min TCC metric has impediments (see puzzles in TCC.xml).
- *  Once they are resolved, cover the metric with autotests and add it
- *  to reports list.
- *  (details on how to test the metrics are to be negotiated here - #107)
+ * @checkstyle NPathComplexityCheck (500 lines)
+ * @checkstyle MagicNumberCheck (500 lines)
+ * @checkstyle CyclomaticComplexityCheck (500 lines)
+ * @checkstyle MethodLengthCheck (500 lines)
+ * @checkstyle JavaNCSSCheck (500 lines)
  *
  * @todo #9:30min LCC metric has impediments (see puzzles in LCC.xml).
  *  Once they are resolved, cover the metric with autotests and add it
@@ -74,13 +77,17 @@ import org.xembly.Xembler;
  *  Once they are resolved, cover the metric with autotests and add it
  *  to reports list.
  *  (details on how to test the metrics are to be negotiated here - #107)
- *
- * @todo #15:30min LORM metric has impediments (see puzzles in LORM.xml).
- *  Once they are resolved, cover the metric with autotests and add it
- *  to reports list.
- *  (details on how to test the metrics are to be negotiated here - #107)
  */
-@SuppressWarnings("PMD.AvoidDuplicateLiterals")
+@SuppressWarnings
+    (
+        {
+            "PMD.AvoidDuplicateLiterals",
+            "PMD.NPathComplexity",
+            "PMD.CyclomaticComplexity",
+            "PMD.StdCyclomaticComplexity",
+            "PMD.ModifiedCyclomaticComplexity"
+        }
+    )
 public final class App {
 
     /**
@@ -104,7 +111,22 @@ public final class App {
      * @param target Target dir
      */
     public App(final Path source, final Path target) {
-        this(source, target, new HashMap<>(0));
+        this(
+            source, target,
+            new MapOf<String, Object>(
+                new MapEntry<>("LCOM", true),
+                new MapEntry<>("LCOM2", true),
+                new MapEntry<>("LCOM3", true),
+                new MapEntry<>("LCOM4", true),
+                new MapEntry<>("LCOM5", true),
+                new MapEntry<>("SCOM", true),
+                new MapEntry<>("NHD", true),
+                new MapEntry<>("MMAC", true),
+                new MapEntry<>("OCC", true),
+                new MapEntry<>("PCC", true),
+                new MapEntry<>("TCC", true)
+            )
+        );
     }
 
     /**
@@ -132,44 +154,109 @@ public final class App {
         final Base base = new DefaultBase(this.input);
         final XML skeleton = new Skeleton(base).xml();
         final Collection<XSL> layers = new LinkedList<>();
-        if (this.params.get("include-ctors") == null) {
+        if (this.params.containsKey("include-ctors")) {
+            Logger.info(this, "Constructors will be included");
+        } else {
             layers.add(App.xsl("layers/no-ctors.xsl"));
+            Logger.info(this, "Constructors will be ignored");
         }
-        if (this.params.get("include-static-methods") == null) {
+        if (this.params.containsKey("include-static-methods")) {
+            Logger.info(this, "Static methods will be included");
+        } else {
             layers.add(App.xsl("layers/no-static-methods.xsl"));
+            Logger.info(this, "Static methods will be ignored");
         }
         final XSL chain = new XSLChain(layers);
         this.save(skeleton.toString(), "skeleton.xml");
-        final Iterable<Report> reports = new ListOf<>(
-            new Report(
-                chain.transform(skeleton),
-                "LCOM", this.params, 10.0d, -5.0d
-            ),
-            new Report(
-                chain.transform(skeleton),
-                "MMAC", this.params, 0.5d, 0.25d
-            ),
-            new Report(
-                chain.transform(skeleton),
-                "LCOM5", this.params
-            ),
-            new Report(
-                chain.transform(skeleton),
-                "NHD"
-            ),
-            new Report(
-                chain.transform(skeleton),
-                "LCOM2", this.params
-            ),
-            new Report(
-                chain.transform(skeleton),
-                "LCOM3", this.params
-            ),
-            new Report(
-                chain.transform(skeleton),
-                "SCOM", this.params
-            )
-        );
+        final Collection<Report> reports = new LinkedList<>();
+        if (this.params.containsKey("LCOM")) {
+            reports.add(
+                new Report(
+                    chain.transform(skeleton),
+                    "LCOM", this.params, 10.0d, -5.0d
+                )
+            );
+        }
+        if (this.params.containsKey("CAMC")) {
+            reports.add(
+                new Report(
+                    chain.transform(skeleton),
+                    "CAMC", this.params
+                )
+            );
+        }
+        if (this.params.containsKey("MMAC")) {
+            reports.add(
+                new Report(
+                    chain.transform(skeleton),
+                    "MMAC", this.params, 0.5d, 0.1d
+                )
+            );
+        }
+        if (this.params.containsKey("LCOM5")) {
+            reports.add(
+                new Report(
+                    chain.transform(skeleton),
+                    "LCOM5", this.params, 0.5d, -0.1d
+                )
+            );
+        }
+        if (this.params.containsKey("NHD")) {
+            reports.add(
+                new Report(
+                    chain.transform(skeleton),
+                    "NHD"
+                )
+            );
+        }
+        if (this.params.containsKey("LCOM2")) {
+            reports.add(
+                new Report(
+                    chain.transform(skeleton),
+                    "LCOM2", this.params
+                )
+            );
+        }
+        if (this.params.containsKey("LCOM3")) {
+            reports.add(
+                new Report(
+                    chain.transform(skeleton),
+                    "LCOM3", this.params
+                )
+            );
+        }
+        if (this.params.containsKey("SCOM")) {
+            reports.add(
+                new Report(
+                    chain.transform(skeleton),
+                    "SCOM", this.params
+                )
+            );
+        }
+        if (this.params.containsKey("OCC")) {
+            reports.add(
+                new Report(
+                    chain.transform(skeleton),
+                    "OCC", this.params
+                )
+            );
+        }
+        if (this.params.containsKey("PCC")) {
+            reports.add(
+                new Report(
+                    chain.transform(skeleton),
+                    "PCC"
+                )
+            );
+        }
+        if (this.params.containsKey("TCC")) {
+            reports.add(
+                new Report(
+                    chain.transform(skeleton),
+                    "TCC"
+                )
+            );
+        }
         new IoCheckedScalar<>(
             new AndInThreads(
                 report -> {
@@ -178,6 +265,7 @@ public final class App {
                 reports
             )
         ).value();
+        Logger.info(this, "%d XML reports created", reports.size());
         final XML index = new StrictXML(
             new XSLChain(
                 new CollectionOf<>(
@@ -216,6 +304,7 @@ public final class App {
             ),
             new XSDDocument(App.class.getResourceAsStream("xsd/matrix.xsd"))
         );
+        Logger.info(this, "Matrix generated");
         this.save(matrix.toString(), "matrix.xml");
         this.save(
             App.xsl("matrix.xsl").transform(matrix).toString(),

@@ -61,11 +61,15 @@ SOFTWARE.
     <xsl:copy>
       <xsl:attribute name="value">
         <xsl:choose>
-          <xsl:when test="$a = 0 or $m = 1">
+          <xsl:when test="$a = 0">
+            <xsl:text>NaN</xsl:text>
+          </xsl:when>
+          <xsl:when test="$m = 1">
             <xsl:text>NaN</xsl:text>
           </xsl:when>
           <xsl:otherwise>
-            <xsl:value-of select="(((1 div $a) * sum($attributes_use/count)) - $m) div (1 - $m)"/>
+            <xsl:variable name="lcom" select="(((1 div $a) * sum($attributes_use/count)) - $m) div (1 - $m)"/>
+            <xsl:value-of select="format-number($lcom, '0.####')"/>
           </xsl:otherwise>
         </xsl:choose>
       </xsl:attribute>

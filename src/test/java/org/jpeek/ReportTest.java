@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import org.cactoos.text.TextOf;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
+import org.jpeek.skeleton.Skeleton;
 import org.junit.Test;
 import org.xembly.Directives;
 import org.xembly.Xembler;
@@ -134,4 +135,18 @@ public final class ReportTest {
         );
     }
 
+    @Test
+    public void setsCorrectschemaLocation() throws IOException {
+        final Path output = Files.createTempDirectory("");
+        new Report(new Skeleton(new FakeBase()).xml(), "LCOM").save(output);
+        MatcherAssert.assertThat(
+            XhtmlMatchers.xhtml(
+                new TextOf(output.resolve("LCOM.xml")).asString()
+            ),
+            XhtmlMatchers.hasXPaths(
+                // @checkstyle LineLength (1 line)
+                "/metric[@xsi:noNamespaceSchemaLocation = 'xsd/metric.xsd']"
+            )
+        );
+    }
 }

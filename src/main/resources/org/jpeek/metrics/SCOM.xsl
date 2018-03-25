@@ -57,6 +57,18 @@ SOFTWARE.
     <xsl:variable name="m" select="count($methods)"/>
     <xsl:variable name="attributes" select="attributes/attribute/text()"/>
     <xsl:variable name="a" select="count($attributes)"/>
+    <xsl:variable name="SCOM_minK">
+      <xsl:choose>
+        <xsl:when test="$m = 0 or $m = 1 or $a = 0">
+          <xsl:text>NaN</xsl:text>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:variable name="x" select="($m - 1) div $a"/>
+          <xsl:variable name="S" select="0.5 * (1 + floor($x)) * (($x - floor($x)) + $m - 1)"/>
+          <xsl:value-of select="$S * (2 div ($m * ($m - 1) * $a))"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
     <xsl:variable name="pairs">
       <xsl:for-each select="$methods">
         <xsl:variable name="method" select="."/>
@@ -119,16 +131,12 @@ SOFTWARE.
             <xsl:text>NaN</xsl:text>
           </xsl:when>
           <xsl:otherwise>
-            <xsl:value-of select="(2 div ($m * ($m - 1))) * sum($scores/score)"/>
+            <xsl:variable name="scom" select="(2 div ($m * ($m - 1))) * sum($scores/score)"/>
+            <xsl:value-of select="format-number($scom, '0.####')"/>
           </xsl:otherwise>
         </xsl:choose>
       </xsl:attribute>
       <xsl:apply-templates select="@*"/>
-      <!--
-        @todo #68:30min Calculate SCOM_min as per page 86 of the paper (I don't
-         know what the "int" function means). This value can be used as a guide
-         to determine whether a class needs to be split into several classes.
-      -->
       <vars>
         <var id="m">
           <xsl:value-of select="$m"/>
@@ -138,6 +146,9 @@ SOFTWARE.
         </var>
         <var id="a">
           <xsl:value-of select="$a"/>
+        </var>
+        <var id="SCOM_minK">
+          <xsl:value-of select="$SCOM_minK"/>
         </var>
       </vars>
     </xsl:copy>
