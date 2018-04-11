@@ -41,6 +41,7 @@ import org.cactoos.scalar.IoCheckedScalar;
 import org.cactoos.text.TextOf;
 import org.cactoos.text.UncheckedText;
 import org.jpeek.App;
+import org.jpeek.Scm;
 import org.takes.Response;
 
 /**
@@ -146,26 +147,12 @@ final class Reports implements BiFunc<String, String, Func<String, Response>> {
         }
         final Path output = this.target.resolve(grp).resolve(artifact);
         final Path pom = input
-            .resolve("META-INF/maven")
-            .resolve(group)
-            .resolve(artifact)
-            .resolve("pom.xml");
+                .resolve("META-INF/maven")
+                .resolve(group)
+                .resolve(artifact)
+                .resolve("pom.xml");
         final Map<String, Object> params = new HashMap<>();
-        if (Files.exists(pom)) {
-            final XML xml = new XMLDocument(
-                new UncheckedText(
-                    new TextOf(
-                        pom
-                    ),
-                    e -> ""
-                ).asString()
-            ).registerNs("m", "http://maven.apache.org/POM/4.0.0");
-            final List<String> url = xml
-                .xpath("//m:project/m:scm/m:url/text()");
-            if (!url.isEmpty()) {
-                params.put("scm-url", url.get(0));
-            }
-        }
+        params.put("scm-url", new Scm.FromPom(pom).uri());
         if (Files.exists(output)) {
             throw new IllegalStateException(
                 String.format(
